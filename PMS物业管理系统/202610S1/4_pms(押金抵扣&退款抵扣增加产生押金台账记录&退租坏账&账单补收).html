@@ -1529,7 +1529,7 @@ hr.div { border: none; border-top: 1px solid var(--border-lighter); margin: 14px
             <thead><tr>
               <th>押金编码</th><th>资产类型</th><th>资产编码</th><th>关联合同</th><th>租户</th>
               <th>押金金额</th><th>实缴金额</th>
-              <th>抵扣金额<span class="hint-ic" title="抵扣金额 = 押金抵扣账单 + 退租扣减项（只增不减）；可能大于实缴金额，超出部分为租户应补金额">ⓘ</span></th>
+              <th>抵扣金额<span class="hint-ic" title="抵扣金额 = 押金抵扣账单 + 退租扣减项">ⓘ</span></th>
               <th>已退金额</th>
               <th>剩余金额<span class="hint-ic" title="剩余金额 = 实缴金额 − 已退金额 − 抵扣金额，计算结果小于 0 时显示为 0。退租结算扣减项超出押金余额时剩余金额为 0，超出部分为租户应补金额（结算应退金额为负数）">ⓘ</span></th>
               <th>缴纳方式</th><th>缴纳日期</th><th>缴费状态</th><th class="col-sticky-right" style="width:80px;min-width:80px">操作</th>
@@ -7051,7 +7051,7 @@ function renderBillDepositDetail(box, info){
     <div class="bd-summary-bar">
       <div class="cell"><div class="k">已缴押金总额</div><div class="v">¥${fmt2(d.paidAmount||0)}</div></div>
       <div class="cell"><div class="k">已退还金额</div><div class="v">¥${fmt2(d.refundAmount||0)}</div></div>
-      <div class="cell"><div class="k">抵扣金额<span class="hint-ic" title="抵扣金额 = 押金抵扣账单 + 退租扣减项（只增不减）；可能大于实缴金额，超出部分为租户应补金额">ⓘ</span></div><div class="v">¥${fmt2(d.deductAmount||0)}</div></div>
+      <div class="cell"><div class="k">抵扣金额<span class="hint-ic" title="抵扣金额 = 押金抵扣账单 + 退租扣减项">ⓘ</span></div><div class="v">¥${fmt2(d.deductAmount||0)}</div></div>
       <div class="cell"><div class="k">剩余金额<span class="hint-ic" title="剩余金额 = 实缴金额 − 已退金额 − 抵扣金额，计算结果小于 0 时显示为 0">ⓘ</span></div><div class="v">¥${fmt2(remain)}</div></div>
     </div>
     <div class="section-title">基本信息</div>
