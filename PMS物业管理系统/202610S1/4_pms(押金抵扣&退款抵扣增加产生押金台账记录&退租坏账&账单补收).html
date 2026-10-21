@@ -1529,9 +1529,11 @@ hr.div { border: none; border-top: 1px solid var(--border-lighter); margin: 14px
             <thead><tr>
               <th>押金编码</th><th>资产类型</th><th>资产编码</th><th>关联合同</th><th>租户</th>
               <th>押金金额</th><th>实缴金额</th>
-              <th>抵扣金额<span class="hint-ic" title="抵扣金额 = 押金抵扣账单 + 退租扣减项">ⓘ</span></th>
+              <th>结算增加<span class="hint-ic" title="退租结算时租户补缴的金额，计入押金剩余金额">ⓘ</span></th>
+              <th>结算退还<span class="hint-ic" title="退租结算时应退还租户的金额（退还项），计入押金剩余金额，完成退款时随押金一起退还">ⓘ</span></th>
+              <th>抵扣金额<span class="hint-ic" title="抵扣金额 = 押金抵扣账单 + 退租增加项">ⓘ</span></th>
               <th>已退金额</th>
-              <th>剩余金额<span class="hint-ic" title="剩余金额 = 实缴金额 − 已退金额 − 抵扣金额，计算结果小于 0 时显示为 0。退租结算扣减项超出押金余额时剩余金额为 0，超出部分为租户应补金额（结算应退金额为负数）">ⓘ</span></th>
+              <th>剩余金额<span class="hint-ic" title="剩余金额 = 实缴 + 结算增加 + 结算退还 − 已退 − 抵扣">ⓘ</span></th>
               <th>缴纳方式</th><th>缴纳日期</th><th>缴费状态</th><th class="col-sticky-right" style="width:80px;min-width:80px">操作</th>
             </tr></thead>
             <tbody id="dmTbody"></tbody>
@@ -1555,6 +1557,8 @@ hr.div { border: none; border-top: 1px solid var(--border-lighter); margin: 14px
               <div class="ms-dropdown" id="dlTypeDropdown" style="display:none">
                 <label class="ms-opt"><input type="checkbox" value="全部" onchange="onDlTypeCheck(this)">全部</label>
                 <label class="ms-opt"><input type="checkbox" value="收款" onchange="onDlTypeCheck(this)">收款</label>
+                <label class="ms-opt"><input type="checkbox" value="结算增加" onchange="onDlTypeCheck(this)">结算增加</label>
+                <label class="ms-opt"><input type="checkbox" value="结算退还" onchange="onDlTypeCheck(this)">结算退还</label>
                 <label class="ms-opt"><input type="checkbox" value="抵扣" onchange="onDlTypeCheck(this)">抵扣</label>
                 <label class="ms-opt"><input type="checkbox" value="退款" onchange="onDlTypeCheck(this)">退款</label>
               </div>
@@ -1572,7 +1576,7 @@ hr.div { border: none; border-top: 1px solid var(--border-lighter); margin: 14px
           <table class="gtab">
             <thead><tr>
               <th>记录编号</th><th>合同编号</th><th>押金编码</th><th>变动类型</th><th style="text-align:right">变动金额</th>
-              <th style="text-align:right">变动后余额<span class="hint-ic" title="押金不足时变动后余额显示为 0，不足部分计入退租结算应退金额（负数），由租户补给物业">ⓘ</span></th><th>关联单据</th><th>操作时间</th>
+              <th style="text-align:right">变动后余额</th><th>关联单据</th><th>操作时间</th>
             </tr></thead>
             <tbody id="dlTbody"></tbody>
           </table>
@@ -3926,18 +3930,20 @@ const retires = [
     settled:false, refundAmount:null, refundMethod:'线下退款', refundDate:'', refundNote:'', refundVoucher:false,
   },
   {
-    // 示例（20261013-02 V1.1）：结算提交后，扣减项 -> 押金台账"抵扣"，关联退租单；增加项通过退租补缴收取（一张收款凭证，账单类型=退租单），不进押金台账
+    // 示例：结算提交后，退还项 -> 押金台账「结算退还」；增加项 -> 押金台账「抵扣」（关联退租单，收费项目=退租增加）；应退 = 2000 + 200 − 500 = 1700
     no:'TZ202610080001', ht:'HT202609010008', tenant:'赵磊', phone:'137****5208', kind:'商铺', asset:'S-206',
     type:'提前退租', date:'2026-10-08', status:'待退款', applicant:'陈寄尘', created:'2026-10-08 14:10:26',
     reason:'经营调整', house:'轻微损坏', fine:0, waterNum:18, elecNum:260, waterImg:true, elecImg:true, sitePhoto:true, note:'玻璃门划伤',
     depositShould:2000, depositPaid:2000, depositBillNo:'YJ202609010008', utilBillNo:'',
     bills:[ { type:'押金账单', amount:2000, no:'YJ202609010008', status:'已缴费' } ],
     deductions:[
-      { kind:'扣减', item:'清洁费', amount:150, note:'退租深度保洁', auto:false },
-      { kind:'扣减', item:'损坏赔偿', amount:300, note:'玻璃门划伤维修', auto:false },
-      { kind:'增加', item:'维修费', amount:50, note:'空调人为损坏，租户另付维修费', auto:false },
+      { kind:'增加', item:'清洁费', amount:150, note:'退租深度保洁', auto:false },
+      { kind:'增加', item:'损坏赔偿', amount:300, note:'玻璃门划伤维修', auto:false },
+      { kind:'增加', item:'维修费', amount:50, note:'空调人为损坏', auto:false },
+      { kind:'退还', item:'租金退还', amount:200, note:'提前退租，多收租金退还', auto:false },
     ],
-    settled:true, settleDepositBalance:2000, refundAmount:1550, refundMethod:'线下退款', refundDate:'', refundNote:'', refundVoucher:false, refundOperator:'',
+    settled:true, settleDepositBalance:2000, refundAmount:1700,
+    settleSnap:{ balance:2000, ret:200, sup:0, ded:0, addTotal:500, addPaid:500, refund:1700, billTotal:0, count:0, billSupDue:0, addSupDue:0, billSupPaid:0, addSupPaid:0 }, refundMethod:'线下退款', refundDate:'', refundNote:'', refundVoucher:false, refundOperator:'',
   },
   {
     // pre-seeded at 待审核 so the 确认结算 dialog (unpaid-bills gate + 押金应缴/实缴 +
@@ -3953,8 +3959,9 @@ const retires = [
       { type:'服务账单', amount:170, no:'ZD202608250701', status:'待缴费' },
     ],
     deductions:[
-      { kind:'扣减', item:'补缴', amount:150, note:'根据申请退租带入', auto:true },
-      { kind:'扣减', item:'钥匙补办费', amount:20, note:'退租时补办门禁卡', auto:false },
+      { kind:'增加', item:'补缴', amount:150, note:'根据申请退租带入', auto:true },
+      { kind:'增加', item:'钥匙补办费', amount:20, note:'退租时补办门禁卡', auto:false },
+      { kind:'退还', item:'租金退还', amount:200, note:'提前退租，多收租金退还', auto:false },
     ],
     settled:false, refundAmount:null, refundMethod:'线下退款', refundDate:'', refundNote:'', refundVoucher:false,
   },
@@ -3965,10 +3972,11 @@ const retires = [
     depositShould:3000, depositPaid:0, depositBillNo:'YJ202608260002', utilBillNo:'ZD202608260011',
     bills:[],
     deductions:[
-      { kind:'扣减', item:'维修费', amount:20, note:'--', auto:false },
-      { kind:'扣减', item:'清洁费', amount:30, note:'--', auto:false },
+      { kind:'增加', item:'维修费', amount:20, note:'--', auto:false },
+      { kind:'增加', item:'清洁费', amount:30, note:'--', auto:false },
     ],
-    settled:true, refundAmount:-50, refundMethod:'线下退款', refundDate:'', refundNote:'', refundVoucher:false, refundOperator:'',
+    settled:true, refundAmount:0,
+    settleSnap:{ balance:0, ret:0, sup:0, ded:0, addTotal:50, addPaid:0, refund:0, billTotal:0, count:0, billSupDue:0, addSupDue:50, billSupPaid:0, addSupPaid:0 }, refundMethod:'线下退款', refundDate:'', refundNote:'', refundVoucher:false, refundOperator:'',
   },
   {
     no:'TZ202608250011', ht:'HT202608250007', tenant:'kerrey', phone:'175****3732', kind:'公寓', asset:'2613',
@@ -4096,8 +4104,8 @@ const depositBills = [
     status:'未支付', refundStatus:'--', linkedRetireNo:null },
 ];
 function findDepositBill(no){ return depositBills.find(d => d.no === no); }
-// 剩余金额 = 实缴金额 − 已退金额 − 抵扣金额，计算结果小于 0 时显示为 0（退租结算扣减项超出押金余额时，超出部分为租户应补金额）
-function depositRemaining(d){ return Math.max(0, +fmt2((d.paidAmount||0) - (d.refundAmount||0) - (d.deductAmount||0))); }
+// 剩余金额 = 实缴金额 + 结算增加 + 结算退还 − 已退金额 − 抵扣金额（计算结果小于 0 时显示为 0）
+function depositRemaining(d){ return Math.max(0, +fmt2((d.paidAmount||0) + (d.settleAddAmount||0) + (d.settleReturnAmount||0) - (d.refundAmount||0) - (d.deductAmount||0))); }
 // 押金管理状态 = 支付状态(已支付/未支付) + 缴费状态(待缴费/待退还/退款结算中/已退还/已作废) 两个标签
 function depositFeeState(d){
   if (d.refundStatus === '已作废') return '已作废';
@@ -4122,7 +4130,7 @@ function pushDepositLedger(d, changeType, changeAmount, opTime, billType, billNo
     id: depositLedgerSeq,
     contractNo: d.contractNo,
     depositNo: d.no,
-    changeType, // 收款 / 抵扣（账单押金抵扣、退租结算扣减项）/ 退款
+    changeType, // 收款 / 结算增加（退租补缴）/ 结算退还（退还项）/ 抵扣（账单押金抵扣、退租增加项）/ 退款
     changeAmount: +fmt2(changeAmount),
     balanceAfter: depositRemaining(d),
     billType: billType || '押金账单',
@@ -4207,6 +4215,8 @@ function renderDepositMgmtTable(){
       <td>${d.tenant}${d.phone?'('+d.phone+')':''}</td>
       <td>¥${fmt2(d.depositAmount)}</td>
       <td>¥${fmt2(d.paidAmount)}</td>
+      <td>¥${fmt2(d.settleAddAmount||0)}</td>
+      <td>¥${fmt2(d.settleReturnAmount||0)}</td>
       <td>¥${fmt2(d.deductAmount||0)}</td>
       <td>¥${fmt2(d.refundAmount||0)}</td>
       <td>¥${fmt2(remain)}</td>
@@ -4215,7 +4225,7 @@ function renderDepositMgmtTable(){
       <td>${depositStatusTag(d)}</td>
       <td class="col-sticky-right"><span style="color:var(--text-placeholder)">--</span></td>
     </tr>`;
-  }).join('') || `<tr><td colspan="14" style="text-align:center;color:var(--text-placeholder)">暂无数据</td></tr>`;
+  }).join('') || `<tr><td colspan="16" style="text-align:center;color:var(--text-placeholder)">暂无数据</td></tr>`;
 }
 
 /* ============================================================
@@ -4257,7 +4267,7 @@ function onDlTypeCheck(el){
   renderDepositLedgerTable();
 }
 function depositLedgerTypeTag(t){
-  const map = { 收款:'tag-green', 抵扣:'tag-orange', 退款:'tag-red' };
+  const map = { 收款:'tag-green', 结算增加:'tag-blue', 结算退还:'tag-purple', 抵扣:'tag-orange', 退款:'tag-red' };
   return `<span class="tag ${map[t]||'tag-gray'}">${t}</span>`;
 }
 function depositLedgerBillTypeTag(billType){
@@ -4354,6 +4364,8 @@ function renderLedgerDetailPage(tabKey){
   document.getElementById('ledgerDetailSummary').innerHTML = `
     <div class="fee-sum-row"><span>押金金额</span><span>¥${fmt2(d.depositAmount)}</span></div>
     <div class="fee-sum-row"><span>实缴金额</span><span>¥${fmt2(d.paidAmount)}</span></div>
+    <div class="fee-sum-row"><span>结算增加</span><span>¥${fmt2(d.settleAddAmount||0)}</span></div>
+    <div class="fee-sum-row"><span>结算退还</span><span>¥${fmt2(d.settleReturnAmount||0)}</span></div>
     <div class="fee-sum-row"><span>已退金额</span><span>¥${fmt2(d.refundAmount)}</span></div>
     <div class="fee-sum-row"><span>抵扣金额</span><span>¥${fmt2(d.deductAmount)}</span></div>
     <div class="fee-sum-row total"><span>剩余金额</span><span>¥${fmt2(d.no ? depositRemaining(d) : 0)}</span></div>`;
@@ -4927,22 +4939,19 @@ function addServiceTransactionOrder(b, payTime){
   const d2 = findDepositBill('YJ202609010008');
   const r2 = findRetire('TZ202610080001');
   if (d2 && r2) {
-    // 扣减项 -> 押金台账（抵扣）；增加项不涉及押金
-    r2.deductions.filter(d => d.kind === '扣减').forEach(d => {
-      const amt = +fmt2(d.amount);
-      d2.deductAmount = +fmt2((d2.deductAmount||0) + amt);
-      pushDepositLedger(d2, '抵扣', -amt, '2026-10-08 15:20:00', '退租单', r2.no, [{ name:'退租扣减', amount:amt }]);
+    // 退还项 -> 押金台账「结算退还」；增加项 -> 押金台账「抵扣」（收费项目=退租增加），生成退租单交易日志（缴费方式=押金）
+    const T0 = '2026-10-08 15:20:00';
+    const ret = settleReturnTotal(r2);
+    d2.settleReturnAmount = +fmt2((d2.settleReturnAmount||0) + ret);
+    pushDepositLedger(d2, '结算退还', ret, T0, '退租单', r2.no, [{ name:'退租退还', amount:ret }]);
+    settleAddRows(r2).forEach(x => {
+      d2.deductAmount = +fmt2((d2.deductAmount||0) + x.amt);
+      pushDepositLedger(d2, '抵扣', -x.amt, T0, '退租单', r2.no, [{ name:'退租增加', amount:x.amt }]);
     });
+    r2.addTrans = { amount:settleAddTotal(r2), method:'押金', time:T0 };
+    // 历史退租单（上线前按旧逻辑结算）：扣减项交易日志
     const r3 = findRetire('TZ202608250011');
     if (r3 && !r3.deductTrans) r3.deductTrans = { amount:100, method:'押金', time:'2026-08-25 13:30:00' };
-    r2.deductTrans = { amount:+fmt2(r2.deductions.filter(d => d.kind === '扣减').reduce((t, d) => t + (+d.amount || 0), 0)), method:'押金', time:'2026-10-08 15:20:00' };
-    // 增加项 ¥50 通过补缴收取（现金），生成一张收款凭证（账单类型=退租单，费用名称=退租补缴），退租单关联补缴交易日志
-    const sup = { amount:50, method:'现金', date:'2026-10-08', transNo:'', payer:'陈寄尘', voucher:false, alloc:{ bills:{}, adds:{ 2:50 } } };
-    const voucherNo = genVoucherNo(r2.asset, sup.date);
-    receiptVouchers.push({ voucherNo, transNo:'', payer:r2.tenant, assetType:r2.kind, assetNo:r2.asset, phone:r2.phone, amount:50, billType:'退租单',
-      payDate:sup.date, status:'已收款', payMethod:'现金', billNo:r2.no, retireNo:r2.no, hasVoucherImg:false,
-      items:[{ name:'退租补缴', amount:50, periodStart:sup.date, periodEnd:sup.date }] });
-    r2.supplementRecord = Object.assign({}, sup, { voucherNo, time:'2026-10-08 15:20:00', billPaid:0, addPaid:50, addItems:[{ item:'维修费', amount:50, paid:50 }] });
   }
 })();
 
@@ -5910,7 +5919,7 @@ function submitApply(){
   const no = 'TZ2026082600' + (10+seq%90);
   const utilBillNo = genBillNo('水电账单', date);
   const deductions = [];
-  if (fine > 0) deductions.push({ kind:'扣减', item:'补缴', amount:fine, note:'根据申请退租带入', auto:true });
+  if (fine > 0) deductions.push({ kind:'增加', item:'补缴', amount:fine, note:'根据申请退租带入', auto:true });
 
   const rec = {
     no, ht:c.no, tenant:c.tenant, phone:c.phone, kind:c.kind, asset:c.asset,
@@ -6018,11 +6027,19 @@ function settleLockedToast(){ toast('该账单已在退租结算中（结算待�
 // 结算未缴费列表：仅展示缴费状态=待缴费的账单（已缴费/已作废/已坏账不展示），按账单日期从新到旧
 function settleUnpaidBills(r){ return (r.bills || []).filter(b => b.status === '待缴费').sort(settleBillCompareDesc); }
 function settleSelectable(r, b){ return b.type !== '押金账单' && !!retireDepositBill(r); }
-// 押金抵扣实时计算：按账单日期从新到旧逐笔冲抵；抵扣金额 = min(应缴金额, 剩余押金)，补缴金额 = 应缴 − 抵扣
+// 抵扣明细收支类型：增加（租户应付，从押金抵扣，不足部分需补缴）/ 退还（退还给租户，计入应退金额）；扣减仅为历史退租单（上线前已按旧逻辑结算）
+function settleAddRows(r){ return (r.deductions || []).map((d, i) => ({ d, i, amt: +fmt2(parseFloat(d.amount) || 0) })).filter(x => (x.d.kind === '增加' || x.d.kind === '扣减') && x.amt > 0); }
+function settleAddTotal(r){ return +fmt2(settleAddRows(r).reduce((s, x) => s + x.amt, 0)); }
+function settleReturnRows(r){ return (r.deductions || []).map((d, i) => ({ d, i, amt: +fmt2(parseFloat(d.amount) || 0) })).filter(x => x.d.kind === '退还' && x.amt > 0); }
+function settleReturnTotal(r){ return +fmt2(settleReturnRows(r).reduce((s, x) => s + x.amt, 0)); }
+// 押金抵扣实时计算：可用金额 = 押金余额 + 退还项合计；先按账单日期从新到旧逐笔抵扣账单，再按抵扣明细顺序抵扣增加项
+// 抵扣金额 = min(应缴/增加项金额, 剩余可用金额)，补缴金额 = 应缴 − 抵扣
 function computeSettleAlloc(r, selectedNos){
   const balance = Math.max(0, +fmt2(retireDepositBalance(r)));
-  let remain = balance, dedTotal = 0, supTotal = 0, billTotal = 0, supCount = 0;
-  const alloc = {};
+  const ret = settleReturnTotal(r);
+  const pool = +fmt2(balance + ret);
+  let remain = pool, dedTotal = 0, supTotal = 0, billTotal = 0, supCount = 0;
+  const alloc = {}, addAlloc = {};
   settleUnpaidBills(r).filter(b => selectedNos.includes(b.no)).forEach(b => {
     const amount = +fmt2(parseFloat(b.amount) || 0);
     const ded = +fmt2(Math.min(amount, remain));
@@ -6031,60 +6048,67 @@ function computeSettleAlloc(r, selectedNos){
     alloc[b.no] = { amount, ded, sup };
     dedTotal += ded; supTotal += sup; billTotal += amount; if (sup > 0) supCount++;
   });
-  return { balance, alloc, count:Object.keys(alloc).length, dedTotal:+fmt2(dedTotal), supTotal:+fmt2(supTotal), billTotal:+fmt2(billTotal), supCount, balanceAfter:+fmt2(balance - dedTotal) };
+  let addDedTotal = 0, addSupTotal = 0;
+  settleAddRows(r).forEach(x => {
+    const ded = +fmt2(Math.min(x.amt, remain));
+    remain = +fmt2(remain - ded);
+    addAlloc[x.i] = { amt: x.amt, ded, sup: +fmt2(x.amt - ded) };
+    addDedTotal += ded; addSupTotal += x.amt - ded;
+  });
+  dedTotal = +fmt2(dedTotal); addDedTotal = +fmt2(addDedTotal);
+  return { balance, ret, pool, alloc, addAlloc, count:Object.keys(alloc).length, dedTotal, supTotal:+fmt2(supTotal), billTotal:+fmt2(billTotal), supCount,
+    addTotal: settleAddTotal(r), addDedTotal, addSupTotal:+fmt2(addSupTotal), balanceAfter:+fmt2(pool - dedTotal - addDedTotal) };
 }
-// 当前结算口径：已结算取结算快照；结算待确认取锁定内容；编辑中按当前勾选实时计算
+// 当前结算口径：结算待确认取锁定内容；编辑中按当前勾选实时计算
 function currentSettleAlloc(r){
   if (isSettlePending(r)) return r.settlePending;
   const sel = r.no === curSettleNo ? settleSelectedBills : settleUnpaidBills(r).filter(b => settleSelectable(r, b)).map(b => b.no);
   return computeSettleAlloc(r, sel);
 }
+// 结算金额口径（确认结算弹窗、完成退款、详情页、打印凭证共用）：
+// 押金余额（抵扣前）、结算退还（退还项）、结算增加（补缴）、押金抵扣金额（账单实缴，含补缴转入部分）、增加项抵扣金额（含补缴转入部分）
+// 应退金额 = 押金余额 + 结算退还 + 结算增加 − 押金抵扣金额 − 增加项抵扣金额（补缴已全部用于抵扣，应退金额不会小于 0）
 function computeSettleTotals(r){
-  const deduct = r.deductions.filter(d=>d.kind==='扣减').reduce((a,d)=>a+(parseFloat(d.amount)||0),0);
-  const add = r.deductions.filter(d=>d.kind==='增加').reduce((a,d)=>a+(parseFloat(d.amount)||0),0);
-  const F = retireSettleFigures(r);
-  const refund = +fmt2(F.balance - F.ded - deduct);
-  return { deduct, add, refund, balance:F.balance, ded:F.ded };
-}
-// 扣减项实际抵扣金额 = 扣减项合计与（押金余额 − 押金抵扣金额）取较小值，最小为 0；不足部分计入应退金额
-function deductActualAmt(balance, ded, deduct){ return +fmt2(Math.max(0, Math.min(deduct, balance - ded))); }
-function deductHint(balance, ded, deduct){ return deduct > 0 ? `<span class="hint-ic" title="押金实际抵扣 ¥${fmt2(deductActualAmt(balance, ded, deduct))}，不足部分计入应退金额">ⓘ</span>` : ''; }
-// 结算口径：押金余额 = 抵扣前押金余额（已结算取结算快照）；押金抵扣金额 = 勾选账单押金抵扣合计
-// 应退金额 = 押金余额 − 押金抵扣金额 − 扣减项合计（补缴独立于押金，不计入；增加项通过补缴收取，不参与计算）
-function retireSettleFigures(r){
+  if (r.settled && r.settleSnap) {
+    const s = r.settleSnap;
+    return { balance:s.balance, ret:s.ret, sup:s.sup, ded:s.ded, add:s.addTotal, addPaid:s.addPaid, refund:s.refund, billTotal:s.billTotal, count:s.count };
+  }
   if (r.settled) {
+    // 历史退租单（上线前按旧逻辑结算）：扣减项按押金实际抵扣金额计入
     const bills = (r.bills || []).filter(b => b.depositDeductAmount != null && !b.settleHidden);
     const ded = r.settleDedTotal != null ? r.settleDedTotal : +fmt2(bills.reduce((t, b) => t + (b.depositDeductAmount || 0), 0));
     const balance = r.settleBalanceBefore != null ? r.settleBalanceBefore
       : +fmt2((r.settleDepositBalance != null ? r.settleDepositBalance : (r.depositPaid || 0)) + ded);
-    const billTotal = +fmt2(bills.reduce((t, b) => t + (parseFloat(b.amount) || 0), 0));
-    const supPaid = +fmt2(bills.reduce((t, b) => t + (b.supplementPaid || 0), 0));
-    return { balance, ded, billTotal, supPaid, count: bills.length };
+    const add = settleAddTotal(r);
+    const addPaid = +fmt2(Math.max(0, Math.min(add, balance - ded)));
+    return { balance, ret:0, sup:0, ded, add, addPaid, refund:+fmt2(balance - ded - addPaid),
+      billTotal:+fmt2(bills.reduce((t, b) => t + (parseFloat(b.amount) || 0), 0)), count:bills.length };
   }
   const A = currentSettleAlloc(r);
-  return { balance:A.balance, ded:A.dedTotal, billTotal:A.billTotal, supPaid: isSettlePending(r) ? settleSupBillPaid(A) : 0, count:A.count };
+  const p = isSettlePending(r) ? r.settlePending : null;
+  const supBill = settleSupBillPaid(p), supAdd = settleSupAddPaid(p);
+  return { balance:A.balance, ret:A.ret, sup:settleSupRegistered(p), ded:+fmt2(A.dedTotal + supBill), add:A.addTotal, addPaid:+fmt2(A.addDedTotal + supAdd),
+    refund:A.balanceAfter, billTotal:A.billTotal, count:A.count };
 }
+function retireSettleFigures(r){ const T = computeSettleTotals(r); return { balance:T.balance, ded:T.ded, billTotal:T.billTotal, count:T.count }; }
 // 补缴（结算待确认阶段登记，每次结算一次）：p.sup = { amount, method, date, transNo, payer, voucher, alloc:{ bills:{账单号:金额}, adds:{抵扣明细下标:金额} } }
+// 补缴确认结算后转入押金（押金台账「结算增加」），与押金余额、退还项一起抵扣账单和增加项
 function settleSupRegistered(p){ return p && p.sup ? +fmt2(p.sup.amount || 0) : 0; }
-// 增加项：租户另付给物业的费用，通过补缴收取，不涉及押金、不参与应退金额计算
-function settleAddRows(r){ return (r.deductions || []).map((d, i) => ({ d, i, amt: +fmt2(parseFloat(d.amount) || 0) })).filter(x => x.d.kind === '增加' && x.amt > 0); }
-function settleAddTotal(r){ return +fmt2(settleAddRows(r).reduce((s, x) => s + x.amt, 0)); }
-// 应补合计 = 账单补缴金额合计 + 增加项合计
-function settleDueTotal(r, A){ return +fmt2(((A && A.supTotal) || 0) + settleAddTotal(r)); }
-// 补缴分配：先账单（按账单单据日期从新到旧，与押金抵扣顺序一致），每笔最多分配该账单补缴金额；剩余按抵扣明细顺序分配到增加项
+// 应补合计 = 账单补缴金额合计 + 增加项补缴金额合计（= 账单合计 + 增加项合计 − 押金余额 − 退还项合计，最小为 0）
+function settleDueTotal(r, A){ return +fmt2(((A && A.supTotal) || 0) + ((A && A.addSupTotal) || 0)); }
+// 补缴分配：先账单（按账单单据日期从新到旧，与押金抵扣顺序一致），每笔最多分配该账单补缴金额；剩余按抵扣明细顺序分配到增加项补缴金额
 function allocSupplement(r, A, amount){
   let left = +fmt2(amount || 0); const bills = {}, adds = {};
   settleUnpaidBills(r).filter(b => A.alloc[b.no] && A.alloc[b.no].sup > 0).forEach(b => { const v = +fmt2(Math.min(left, A.alloc[b.no].sup)); if (v > 0) { bills[b.no] = v; left = +fmt2(left - v); } });
-  settleAddRows(r).forEach(x => { const v = +fmt2(Math.min(left, x.amt)); if (v > 0) { adds[x.i] = v; left = +fmt2(left - v); } });
+  settleAddRows(r).forEach(x => { const a = A.addAlloc && A.addAlloc[x.i]; const v = +fmt2(Math.min(left, a ? a.sup : 0)); if (v > 0) { adds[x.i] = v; left = +fmt2(left - v); } });
   return { bills, adds };
 }
 function settleSupBillPaid(p){ return p && p.sup ? +fmt2(Object.values(p.sup.alloc.bills).reduce((s, v) => s + v, 0)) : 0; }
 function settleSupAddPaid(p){ return p && p.sup ? +fmt2(Object.values(p.sup.alloc.adds).reduce((s, v) => s + v, 0)) : 0; }
-// 增加项口径：应补 / 实补 / 未补（仅展示）
+// 增加项口径：合计 / 实际抵扣（含补缴转入部分）/ 未收（视为放弃收取）
 function retireAddFigures(r){
-  const total = settleAddTotal(r);
-  const paid = r.settled ? +fmt2((r.supplementRecord && r.supplementRecord.addPaid) || 0) : (isSettlePending(r) ? settleSupAddPaid(r.settlePending) : 0);
-  return { total, paid, unpaid: +fmt2(Math.max(0, total - paid)) };
+  const T = computeSettleTotals(r);
+  return { total:T.add, paid:T.addPaid, unpaid:+fmt2(Math.max(0, T.add - T.addPaid)) };
 }
 let settleSelectedBills = []; // 编辑中：勾选用于"押金抵扣"的未缴费账单编号（勾选变动即重新计算）
 function settleHintHtml(r, A, pending, unpaid){
@@ -6094,9 +6118,10 @@ function settleHintHtml(r, A, pending, unpaid){
     return `应补合计 <b>¥${fmt2(due)}</b>，已补 ¥${fmt2(reg)}，未补 ¥${fmt2(due - reg)}`;
   }
   if (!unpaid.length) return '无未缴费账单';
-  if (!A.count) return `押金余额 ¥${fmt2(A.balance)}，请勾选需要押金抵扣的账单`;
-  if (A.supTotal <= 0) return `押金余额 ¥${fmt2(A.balance)}，可全额抵扣所选 ${A.count} 笔账单，点击「下一步」确认结算`;
-  return `押金余额 ¥${fmt2(A.balance)}，不足以抵扣所选 ${A.count} 笔账单，差额 <b>¥${fmt2(A.supTotal)}</b> 可在下一步补缴；<b>是否补缴不影响结算</b>，未补缴部分视为放弃收取`;
+  const poolTxt = A.ret > 0 ? `可用金额 ¥${fmt2(A.pool)}（押金余额 ¥${fmt2(A.balance)} + 退还项 ¥${fmt2(A.ret)}）` : `押金余额 ¥${fmt2(A.balance)}`;
+  if (!A.count) return `${poolTxt}，请勾选需要押金抵扣的账单`;
+  if (A.supTotal <= 0) return `${poolTxt}，可全额抵扣所选 ${A.count} 笔账单，点击「下一步」确认结算`;
+  return `${poolTxt}，不足以抵扣所选 ${A.count} 笔账单，差额 <b>¥${fmt2(A.supTotal)}</b> 可在下一步补缴；<b>是否补缴不影响结算</b>，未补缴部分视为放弃收取`;
 }
 function renderSettleBody(){
   const r = findRetire(curSettleNo);
@@ -6105,8 +6130,9 @@ function renderSettleBody(){
   const unpaid = pending ? settleUnpaidBills(r).filter(b => pending.selected.includes(b.no)) : settleUnpaidBills(r);
   const sel = pending ? pending.selected : settleSelectedBills;
   const A = pending || computeSettleAlloc(r, sel);
-  const { deduct, add, refund } = computeSettleTotals(r);
-  const addTotal = settleAddTotal(r);
+  const T = computeSettleTotals(r);
+  const refund = T.refund;
+  const addTotal = A.addSupTotal || 0; // 增加项补缴金额（押金余额 + 退还项不足抵扣的部分）
   const dueTotal = settleDueTotal(r, A);
   const notSelected = pending ? [] : unpaid.filter(b => !sel.includes(b.no));
   const supTip = '应缴金额 − 押金抵扣金额';
@@ -6202,7 +6228,7 @@ function renderSettleBody(){
 
   const addPaidMap = pending && pending.sup ? pending.sup.alloc.adds : {};
   html += `<div class="section-title"><span>抵扣明细</span>${pending ? '' : '<span class="link-btn" onclick="addDeductRow()">＋ 添加抵扣项</span>'}</div>`;
-  html += `<table class="deduct-table"><thead><tr><th style="width:110px">收支类型<span class="hint-ic" title="扣减：从押金扣除；增加：租户另付，需补缴">ⓘ</span></th><th>抵扣项目</th><th style="width:140px">抵扣金额(元)</th><th>说明</th>${pending ? '<th style="width:110px">已补缴</th>' : ''}<th style="width:40px"></th></tr></thead><tbody>`;
+  html += `<table class="deduct-table"><thead><tr><th style="width:110px">收支类型<span class="hint-ic" title="${DEDUCT_KIND_TIP}">ⓘ</span></th><th>抵扣项目</th><th style="width:140px">抵扣金额(元)</th><th>说明</th>${pending ? '<th style="width:110px">已补缴</th>' : ''}<th style="width:40px"></th></tr></thead><tbody>`;
   r.deductions.forEach((d, i) => {
     const dis = pending ? 'disabled' : '';
     let itemCell;
@@ -6217,8 +6243,9 @@ function renderSettleBody(){
     const paidCell = pending ? `<td>${d.kind === '增加' ? (addPaid > 0 ? `<span style="color:var(--success)">¥${fmt2(addPaid)}</span>` : '<span style="color:var(--text-placeholder)">未补缴</span>') : '--'}</td>` : '';
     html += `<tr>
       <td><select ${dis} onchange="updateDeduct(${i},'kind',this.value)">
-            <option value="扣减" ${d.kind==='扣减'?'selected':''}>扣减</option>
             <option value="增加" ${d.kind==='增加'?'selected':''}>增加</option>
+            <option value="退还" ${d.kind==='退还'?'selected':''}>退还</option>
+            ${d.kind==='扣减' ? '<option value="扣减" selected disabled>扣减</option>' : ''}
           </select></td>
       <td>${itemCell}</td>
       <td><input type="number" ${dis} value="${d.amount}" onchange="updateDeduct(${i},'amount',this.value)"></td>
@@ -6241,12 +6268,7 @@ function renderSettleBody(){
     </div>`;
   }
 
-  const AF = retireAddFigures(r);
-  html += `<hr class="div">
-    <div class="sum-row"><span>押金余额<span class="hint-ic" title="抵扣前的押金剩余金额">ⓘ</span></span><span class="amt">${moneyPlain(A.balance)}</span></div>
-    <div class="sum-row"><span>押金抵扣金额</span><span class="amt">-¥${fmt2(A.dedTotal)}</span></div>
-    <div class="sum-row"><span>扣减项合计${deductHint(A.balance, A.dedTotal, deduct)}</span><span class="amt">-¥${fmt2(deduct)}</span></div>
-    <div class="sum-row"><span>${addFigLabel()}</span><span class="amt">${addFigValue(AF, !!pending)}</span></div>`;
+  html += `<hr class="div">${settleSumRowsHtml(r, T, !!pending)}`;
   html += `<div class="result-callout">
     <span class="lbl">应退金额<span class="hint-ic" title="${REFUND_TIP}">ⓘ</span></span>
     <span class="amt ${refund>=0?'pos':'neg'}">${money(refund)}</span>
@@ -6300,7 +6322,22 @@ function settleBillDate(b){
   const db = b.type === '押金账单' ? findDepositBill(b.no) : null;
   return (sb && sb.created) || (lb && lb.created) || (db && db.payDate) || b.created || b.payDate || '';
 }
-const REFUND_TIP = '押金余额 − 押金抵扣 − 扣减项合计；为负数表示租户需补钱';
+const REFUND_TIP = '押金余额 + 结算退还 + 结算增加 − 押金抵扣 − 增加项抵扣';
+const DEDUCT_KIND_TIP = '增加：租户应付，从押金抵扣，不足部分需补缴；退还：退还给租户，计入应退金额';
+// 结算金额明细行：押金余额 / 结算退还 / 结算增加 / 押金抵扣金额 / 增加项抵扣金额（确认结算、完成退款、详情页共用）
+function settleSumRowsHtml(r, T, showSup, negCls){
+  const neg = negCls ? ' amt-neg' : '', pos = negCls ? ' amt-pos' : '';
+  const row = (k, tip, v, cls) => `<div class="sum-row"><span>${k}${tip ? `<span class="hint-ic" title="${tip}">ⓘ</span>` : ''}</span><span class="amt${cls || ''}">${v}</span></div>`;
+  const legacy = (r.deductions || []).some(d => d.kind === '扣减');
+  const addLbl = legacy ? '扣减项抵扣金额' : '增加项抵扣金额';
+  const unpaid = +fmt2(Math.max(0, T.add - T.addPaid));
+  let h = row('押金余额', '抵扣前的押金剩余金额', moneyPlain(T.balance));
+  if (T.ret > 0) h += row('结算退还', '退还项合计，计入押金剩余金额', `+¥${fmt2(T.ret)}`, pos);
+  if (showSup || T.sup > 0) h += row('结算增加', '补缴金额，计入押金剩余金额', `+¥${fmt2(T.sup)}`, pos);
+  h += row('押金抵扣金额', '账单押金抵扣金额合计（含补缴）', `-¥${fmt2(T.ded)}`, neg);
+  if (T.add > 0) h += row(addLbl, `${legacy ? '扣减项' : '增加项'}合计 ¥${fmt2(T.add)}，从押金抵扣`, `-¥${fmt2(T.addPaid)}${unpaid > 0 ? `<span style="font-size:12px;color:var(--text-secondary);font-weight:400;margin-left:6px">未收 ¥${fmt2(unpaid)}</span>` : ''}`, neg);
+  return h;
+}
 // 账单未补缴金额：押金抵扣后账单应缴金额多于押金抵扣金额且未补缴的部分合计，视为放弃收取（仅展示，不参与应退金额计算）
 const UNPAID_SUP_TIP = '账单未补缴的部分，结算后不再收取';
 function retireUnpaidSupplement(r){
@@ -6363,7 +6400,7 @@ function openSupplementModal(){
   if (!isSettlePending(r)) { toast('请先点击「下一步」锁定结算内容后再补缴'); return; }
   const p = r.settlePending;
   if (p.sup) { toast('本次结算已补缴，补缴后不可修改'); return; }
-  const addTotal = settleAddTotal(r);
+  const addTotal = p.addSupTotal || 0;
   const due = settleDueTotal(r, p);
   if (due <= 0) { toast('无需补缴'); return; }
   document.getElementById('supBillInfo').innerHTML = `
@@ -6393,7 +6430,8 @@ function renderSupAllocPreview(){
     rows.push(`<tr><td>${b.no}</td><td>${b.type}</td><td>¥${fmt2(p.alloc[b.no].sup)}</td><td><b>¥${fmt2(al.bills[b.no] || 0)}</b></td></tr>`);
   });
   settleAddRows(r).forEach(x => {
-    rows.push(`<tr><td>增加项</td><td>${x.d.item || '--'}</td><td>¥${fmt2(x.amt)}</td><td><b>¥${fmt2(al.adds[x.i] || 0)}</b></td></tr>`);
+    const xa = p.addAlloc && p.addAlloc[x.i]; if (!xa || xa.sup <= 0) return;
+    rows.push(`<tr><td>增加项</td><td>${x.d.item || '--'}</td><td>¥${fmt2(xa.sup)}</td><td><b>¥${fmt2(al.adds[x.i] || 0)}</b></td></tr>`);
   });
   box.innerHTML = `<div style="font-size:12px;color:var(--text-secondary);margin:2px 0 6px">分配结果</div>
     <table class="gtab gtab-compact"><thead><tr><th>账单编号/增加项</th><th>类型/项目</th><th>应补</th><th>分配</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
@@ -6516,7 +6554,7 @@ function onDeductItemSelectChange(sel, i){
 }
 function addDeductRow(){
   const r = findRetire(curSettleNo);
-  r.deductions.push({ kind:'扣减', item:'', amount:0, note:'', auto:false, _isNew:true });
+  r.deductions.push({ kind:'增加', item:'', amount:0, note:'', auto:false, _isNew:true });
   renderSettleBody();
 }
 function removeDeduct(i){
@@ -6537,10 +6575,9 @@ function submitSettle(){
   const notSelected = unpaid.filter(b => !settleSelectedBills.includes(b.no));
   if (notSelected.length) { toast(`存在${notSelected.length}笔未缴费账单未处理，请勾选押金抵扣，或标记已缴/作废/坏账后再结算`); return; }
   const A = computeSettleAlloc(r, settleSelectedBills);
-  const { refund } = computeSettleTotals(r);
   if (settleDueTotal(r, A) <= 0) {
     openConfirm('确认结算', `确认结算吗？结算后押金抵扣生效，账单变为已缴费，结算内容不可修改。<br>
-      <div style="margin-top:8px;color:var(--text-secondary)">押金抵扣 ¥${fmt2(A.dedTotal)}（${A.count}笔账单），应退金额 <b>${money(refund)}</b></div>`,
+      <div style="margin-top:8px;color:var(--text-secondary)">押金抵扣 ¥${fmt2(A.dedTotal)}（${A.count}笔账单）${A.addDedTotal > 0 ? `，增加项抵扣 ¥${fmt2(A.addDedTotal)}` : ''}${A.ret > 0 ? `，结算退还 ¥${fmt2(A.ret)}` : ''}，应退金额 <b>${money(A.balanceAfter)}</b></div>`,
       () => commitSettle(r, Object.assign({ selected: settleSelectedBills.slice(), sup:null }, A)), '确认结算');
     return;
   }
@@ -6573,31 +6610,54 @@ function confirmSettlePending(){
   const { refund } = computeSettleTotals(r);
   const due = settleDueTotal(r, p), reg = settleSupRegistered(p);
   const billPaid = settleSupBillPaid(p), addPaid = settleSupAddPaid(p);
-  const billLeft = +fmt2(p.supTotal - billPaid), addLeft = +fmt2(settleAddTotal(r) - addPaid);
+  const billLeft = +fmt2(p.supTotal - billPaid), addLeft = +fmt2((p.addSupTotal || 0) - addPaid);
   const warn = reg <= 0
     ? `未进行补缴，账单未补 ¥${fmt2(billLeft)}、增加项未补 ¥${fmt2(addLeft)} 确认结算后视为放弃收取`
     : reg < due ? `存在部分未补金额 ¥${fmt2(due - reg)}，其中账单未补 ¥${fmt2(billLeft)}、增加项未补 ¥${fmt2(addLeft)}，确认结算后视为放弃收取` : '';
-  openConfirm('确认结算', `确认后结算内容不可修改，押金抵扣与补缴同时生效。<br>
-    <div style="margin-top:8px;line-height:1.9;color:var(--text-secondary)">押金抵扣 ¥${fmt2(p.dedTotal)}<br>应补合计 ¥${fmt2(due)}<br>已补缴 ¥${fmt2(reg)}（账单 ¥${fmt2(billPaid)} / 增加项 ¥${fmt2(addPaid)}）<br>应退金额 <b style="color:var(--text-primary)">${money(refund)}</b></div>
+  openConfirm('确认结算', `确认后结算内容不可修改，补缴转入押金后与押金抵扣同时生效。<br>
+    <div style="margin-top:8px;line-height:1.9;color:var(--text-secondary)">押金抵扣 ¥${fmt2(p.dedTotal + (p.addDedTotal || 0))}<br>应补合计 ¥${fmt2(due)}<br>已补缴 ¥${fmt2(reg)}（账单 ¥${fmt2(billPaid)} / 增加项 ¥${fmt2(addPaid)}）<br>应退金额 <b style="color:var(--text-primary)">${money(refund)}</b></div>
     ${warn ? `<div style="margin-top:8px;color:var(--warning)">⚠ ${warn}</div>` : ''}`,
     () => commitSettle(r, p), '确认结算');
 }
-// 统一写入：账单缴费状态/实缴金额/缴费方式/系统备注、押金台账（抵扣）、押金抵扣金额、补缴收款凭证（一张，账单类型=退租单）、扣减项台账、结算快照
+// 统一写入（确认结算生效）：押金台账按「结算增加（补缴）→ 结算退还（退还项）→ 逐张账单抵扣 → 增加项抵扣」顺序写入，变动后余额不会小于 0；
+// 账单缴费状态/实缴金额/缴费方式（押金）/系统备注、押金管理（结算增加/结算退还/抵扣金额）、补缴收款凭证（一张，账单类型=退租单）、结算快照
 function commitSettle(r, p){
   const db = retireDepositBill(r);
   const opTime = nowTimeStr();
-  const { refund } = computeSettleTotals(r);
   const s = p.sup || null;
+  const supAmt0 = s ? +fmt2(s.amount || 0) : 0;
+  const ret = p.ret || 0;
+  // 1. 补缴：生成一张收款凭证（账单类型=退租单，费用名称=退租补缴），计入对账管理收款；补缴金额转入押金（结算增加）
+  if (s && supAmt0 > 0) {
+    const voucherNo = genVoucherNo(r.asset, s.date);
+    receiptVouchers.push({
+      voucherNo, transNo: s.transNo || '', payer: r.tenant, assetType: r.kind, assetNo: r.asset, phone: r.phone,
+      amount: supAmt0, billType: '退租单', payDate: s.date, status: '已收款', payMethod: s.method, billNo: r.no, retireNo: r.no, hasVoucherImg: !!s.voucher,
+      items: [{ name: '退租补缴', amount: supAmt0, periodStart: s.date, periodEnd: s.date }],
+    });
+    r.supplementRecord = Object.assign({}, s, { voucherNo, time: opTime, billPaid: settleSupBillPaid(p), addPaid: settleSupAddPaid(p) });
+    if (db) {
+      db.settleAddAmount = +fmt2((db.settleAddAmount || 0) + supAmt0);
+      pushDepositLedger(db, '结算增加', supAmt0, opTime, '退租单', r.no, [{ name: '退租补缴', amount: supAmt0 }]);
+    }
+  }
+  // 2. 退还项：转入押金（结算退还），不生成收款凭证；完成退款时随押金一起退还
+  if (ret > 0 && db) {
+    db.settleReturnAmount = +fmt2((db.settleReturnAmount || 0) + ret);
+    pushDepositLedger(db, '结算退还', ret, opTime, '退租单', r.no, [{ name: '退租退还', amount: ret }]);
+  }
+  // 3. 账单：实缴金额 = 押金抵扣（含补缴转入部分），缴费方式 = 押金，交易日志 1 条
+  let billPaidTotal = 0;
   settleUnpaidBills(r).filter(b => p.selected.includes(b.no)).sort(settleBillCompareDesc).forEach(b => {
     const a = p.alloc[b.no]; if (!a) return;
     const supAmt = s ? +fmt2(s.alloc.bills[b.no] || 0) : 0;
     const paid = +fmt2(a.ded + supAmt);
     const left = +fmt2(a.amount - paid);
-    // 系统自动备注：实缴金额 < 应缴金额（含押金抵扣=0、部分补缴/未补缴）时追加，便于对账
+    billPaidTotal += paid;
     const sysRemark = left > 0
-      ? `【系统】退租结算（退租单 ${r.no}）：${a.ded > 0 ? `押金抵扣 ¥${fmt2(a.ded)}` : '押金余额已用尽，押金抵扣 ¥0.00'}${supAmt > 0 ? `，补缴 ¥${fmt2(supAmt)}` : ''}，账单按已缴费处理，未收取 ¥${fmt2(left)} 视为放弃收取`
+      ? `【系统】退租结算（退租单 ${r.no}）：${paid > 0 ? `押金抵扣 ¥${fmt2(paid)}` : '押金余额已用尽，押金抵扣 ¥0.00'}，账单按已缴费处理，未收取 ¥${fmt2(left)} 视为放弃收取`
       : '';
-    const patch = { status:'已缴费', payMethod:'押金', depositDeductAmount:a.ded, supplementPaid:supAmt, supplementMethod: supAmt > 0 ? s.method : undefined, paidAmount:paid };
+    const patch = { status:'已缴费', payMethod:'押金', depositDeductAmount:paid, supplementPaid:undefined, supplementMethod:undefined, paidAmount:paid };
     Object.assign(b, patch, { payDate: opTime, sysRemark });
     const lb = findListBill(b.no);
     if (lb) { Object.assign(lb, patch, { payer:r.tenant, payTime:opTime }); if (sysRemark) lb.remark = lb.remark ? lb.remark + '；' + sysRemark : sysRemark; }
@@ -6605,45 +6665,32 @@ function commitSettle(r, p){
       const sb = findServiceBill(b.no);
       if (sb) { Object.assign(sb, patch, { payDate:opTime, payer:sb.tenant }); if (sysRemark) sb.remark = sb.remark ? sb.remark + '；' + sysRemark : sysRemark; }
     }
-    // 押金抵扣部分：押金台账抵扣记录 + 押金抵扣金额增加；抵扣金额=0 不生成台账记录/交易日志
-    if (a.ded > 0 && db) {
-      db.deductAmount = +fmt2((db.deductAmount || 0) + a.ded);
-      pushDepositLedger(db, '抵扣', -a.ded, opTime, b.type, b.no, billFeeItems(b.type, b.no, a.ded));
+    if (paid > 0 && db) {
+      db.deductAmount = +fmt2((db.deductAmount || 0) + paid);
+      pushDepositLedger(db, '抵扣', -paid, opTime, b.type, b.no, billFeeItems(b.type, b.no, paid));
     }
   });
-  // 补缴：独立于押金，一次补缴生成一张收款凭证（账单类型=退租单，费用名称=退租补缴），计入对账管理收款；不进押金台账
-  if (s && s.amount > 0) {
-    const voucherNo = genVoucherNo(r.asset, s.date);
-    receiptVouchers.push({
-      voucherNo, transNo: s.transNo || '', payer: r.tenant, assetType: r.kind, assetNo: r.asset, phone: r.phone,
-      amount: s.amount, billType: '退租单', payDate: s.date, status: '已收款', payMethod: s.method, billNo: r.no, retireNo: r.no, hasVoucherImg: !!s.voucher,
-      items: [{ name: '退租补缴', amount: s.amount, periodStart: s.date, periodEnd: s.date }],
-    });
-    r.supplementRecord = Object.assign({}, s, { voucherNo, time: opTime, billPaid: settleSupBillPaid(p), addPaid: settleSupAddPaid(p),
-      addItems: settleAddRows(r).map(x => ({ item: x.d.item, amount: x.amt, paid: s.alloc.adds[x.i] || 0 })) });
-  }
-  r.settleBalanceBefore = p.balance;      // 押金余额快照（抵扣前）
-  r.settleDedTotal = p.dedTotal;          // 本次押金抵扣合计
-  r.settleDepositBalance = p.balanceAfter; // 押金余额（抵扣后），仅留痕
+  // 4. 增加项：按实际抵扣金额（含补缴转入部分）写押金台账抵扣、生成退租单交易日志（缴费方式=押金），对账管理计入收费项目「退租增加」
+  let addPaidTotal = 0;
+  settleAddRows(r).forEach(x => {
+    const a = p.addAlloc && p.addAlloc[x.i];
+    const take = +fmt2((a ? a.ded : 0) + (s ? (s.alloc.adds[x.i] || 0) : 0));
+    if (take <= 0 || !db) return;
+    addPaidTotal = +fmt2(addPaidTotal + take);
+    db.deductAmount = +fmt2((db.deductAmount || 0) + take);
+    pushDepositLedger(db, '抵扣', -take, opTime, '退租单', r.no, [{ name: '退租增加', amount: take }]);
+  });
+  if (addPaidTotal > 0) r.addTrans = { amount: addPaidTotal, method: '押金', time: opTime };
+  const refund = +fmt2(Math.max(0, p.balance + ret + supAmt0 - billPaidTotal - addPaidTotal));
+  r.settleSnap = { balance:p.balance, ret, sup:supAmt0, ded:+fmt2(billPaidTotal), addTotal:p.addTotal || 0, addPaid:addPaidTotal, refund,
+    billTotal:p.billTotal, count:p.count, billSupDue:p.supTotal || 0, addSupDue:p.addSupTotal || 0, billSupPaid:settleSupBillPaid(p), addSupPaid:settleSupAddPaid(p) };
+  r.settleBalanceBefore = p.balance;
+  r.settleDedTotal = +fmt2(billPaidTotal);
   r.refundAmount = refund;
   r.settled = true;
   r.status = '待退款';
   r.settlePending = null;
   r.settleTime = opTime;
-  // 扣减项：押金先抵扣账单，剩余押金再按抵扣明细顺序抵扣扣减项；按实际抵扣金额写押金台账、增加抵扣金额，
-  // 实际抵扣金额 > 0 时生成退租单交易日志（缴费方式=押金），对账管理计入收费项目「退租扣减」；未抵扣部分计入应退金额，不计入补缴
-  if (db) {
-    let remain = +fmt2(Math.max(0, p.balanceAfter));
-    let dedActual = 0;
-    (r.deductions || []).map(d => ({ d, amt: +fmt2(parseFloat(d.amount) || 0) })).filter(x => x.amt > 0 && x.d.kind === '扣减').forEach(({ d, amt }) => {
-      const take = +fmt2(Math.min(amt, remain));
-      if (take <= 0) return;
-      remain = +fmt2(remain - take); dedActual = +fmt2(dedActual + take);
-      db.deductAmount = +fmt2((db.deductAmount || 0) + take);
-      pushDepositLedger(db, '抵扣', -take, opTime, '退租单', r.no, [{ name: '退租扣减', amount: take }]);
-    });
-    if (dedActual > 0) r.deductTrans = { amount: dedActual, method: '押金', time: opTime };
-  }
   settleSelectedBills = [];
   closeModal('modalSettle');
   renderRetireTable();
@@ -6706,17 +6753,18 @@ function openRefundModal(no){
 let curRefundDueAmount = 0; // 本次退租应退金额（用于校验退款金额是否一致，不一致时备注必填）
 function renderRefundBody(){
   const r = findRetire(curRefundNo);
-  const { deduct, add, refund, balance, ded } = computeSettleTotals(r);
-  const F = retireSettleFigures(r);
+  const T = computeSettleTotals(r);
+  const { refund, ded } = T;
+  const F = T;
   curRefundMaxAmount = Math.max(refund, 0);
-  curRefundDueAmount = +fmt2(refund < 0 ? 0 : refund);
-  const defaultRefundAmt = refund < 0 ? 0 : refund;
+  curRefundDueAmount = +fmt2(Math.max(0, refund));
+  const defaultRefundAmt = Math.max(0, refund);
   const voucherDone = r.refundVoucher;
   const deductRows = (r.deductions || []).map(d => `
     <tr>
       <td>${d.kind}</td>
       <td>${d.item || '--'}</td>
-      <td>${d.kind==='增加'?'+':'-'}¥${fmt2(d.amount)}</td>
+      <td>${d.kind==='退还'?'+':'-'}¥${fmt2(d.amount)}</td>
       <td>${d.note || '--'}</td>
     </tr>`).join('') || `<tr><td colspan="4" style="text-align:center;color:var(--text-placeholder)">暂无抵扣明细</td></tr>`;
 
@@ -6725,7 +6773,7 @@ function renderRefundBody(){
       <div class="section-title">账单抵扣</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;margin-bottom:12px;font-size:13px;white-space:nowrap">
         <div>账单应缴合计<span class="hint-ic" title="结算时用押金抵扣的账单应缴金额合计">ⓘ</span>：<b>${moneyPlain(F.billTotal)}</b></div>
-        <div>押金抵扣金额：<b>${moneyPlain(ded)}</b></div>
+        <div>押金抵扣金额<span class="hint-ic" title="账单押金抵扣金额合计（含补缴）">ⓘ</span>：<b>${moneyPlain(ded)}</b></div>
       </div>
       ${(() => { const G = retireSupFigures(r); return G && (G.billDue + G.addDue) > 0 ? `<div class="section-title">补缴</div>${supFigTable(G, 'gtab-compact')}` : ''; })()}
       <div class="section-title">抵扣明细</div>
@@ -6734,9 +6782,7 @@ function renderRefundBody(){
         <tbody>${deductRows}</tbody>
       </table>
       <div class="section-title">押金结算</div>
-      <div class="sum-row"><span>押金余额<span class="hint-ic" title="结算时抵扣前的押金剩余金额">ⓘ</span></span><span class="amt">${moneyPlain(balance)}</span></div>
-      <div class="sum-row"><span>押金抵扣金额</span><span class="amt">-¥${fmt2(ded)}</span></div>
-      <div class="sum-row"><span>扣减项合计${deductHint(balance, ded, deduct)}</span><span class="amt">-¥${fmt2(deduct)}</span></div>
+      ${settleSumRowsHtml(r, T, false)}
     </div>
     <div class="result-callout">
       <span class="lbl">应退金额<span class="hint-ic" title="${REFUND_TIP}">ⓘ</span></span>
@@ -6833,16 +6879,14 @@ function viewRetireDetail(no){
 // 退租详情-补缴记录：结算生效后关联本次补缴交易日志（一次补缴一条），下方展示分配明细
 // 补缴金额：应缴 / 实缴，区分账单 + 增加项（已结算取账单抵扣结果与补缴记录；结算待确认取锁定内容）
 function retireSupFigures(r){
-  let billDue = 0, billPaid = 0;
   if (r.settled) {
-    (r.bills || []).filter(b => b.depositDeductAmount != null && !b.settleHidden).forEach(b => {
-      billDue += Math.max(0, (parseFloat(b.amount) || 0) - (b.depositDeductAmount || 0)); billPaid += (b.supplementPaid || 0);
-    });
-  } else if (isSettlePending(r)) {
-    billDue = r.settlePending.supTotal || 0; billPaid = settleSupBillPaid(r.settlePending);
-  } else return null;
-  const AF = retireAddFigures(r);
-  return { billDue:+fmt2(billDue), billPaid:+fmt2(billPaid), addDue:AF.total, addPaid:AF.paid };
+    const n = r.settleSnap;
+    if (!n) return null;
+    return { billDue:n.billSupDue, billPaid:n.billSupPaid, addDue:n.addSupDue, addPaid:n.addSupPaid };
+  }
+  if (!isSettlePending(r)) return null;
+  const p = r.settlePending;
+  return { billDue:p.supTotal || 0, billPaid:settleSupBillPaid(p), addDue:p.addSupTotal || 0, addPaid:settleSupAddPaid(p) };
 }
 function supFigTable(G, style){
   const row = (k, due, paid) => `<tr><td>${k}</td><td>¥${fmt2(due)}</td><td>¥${fmt2(paid)}</td></tr>`;
@@ -6852,28 +6896,14 @@ function supFigTable(G, style){
         <tr><td><b>合计</b></td><td><b>¥${fmt2(G.billDue + G.addDue)}</b></td><td><b>¥${fmt2(G.billPaid + G.addPaid)}</b></td></tr></tbody>
     </table>`;
 }
+// 补缴模块：应缴 / 实缴，区分账单 + 增加项；已补缴时关联补缴交易日志
 function retireSupplementHtml(r){
-  // 补缴模块：应缴 / 实缴，区分账单 + 增加项
-  let billDue = 0, billPaid = 0;
-  if (r.settled) {
-    (r.bills || []).filter(b => b.depositDeductAmount != null && !b.settleHidden).forEach(b => {
-      billDue += Math.max(0, (parseFloat(b.amount) || 0) - (b.depositDeductAmount || 0)); billPaid += (b.supplementPaid || 0);
-    });
-  } else if (isSettlePending(r)) {
-    billDue = r.settlePending.supTotal || 0; billPaid = settleSupBillPaid(r.settlePending);
-  } else return '';
-  const AF = retireAddFigures(r);
-  billDue = +fmt2(billDue); billPaid = +fmt2(billPaid);
-  if (billDue + AF.total <= 0) return '';
+  const G = retireSupFigures(r);
+  if (!G || G.billDue + G.addDue <= 0) return '';
   const s = r.settled ? r.supplementRecord : (r.settlePending && r.settlePending.sup);
-  const row = (k, due, paid) => `<tr><td>${k}</td><td>¥${fmt2(due)}</td><td>¥${fmt2(paid)}</td></tr>`;
   return `
     <div class="section-title" style="border-left:3px solid var(--primary);padding-left:8px;margin-top:20px">补缴</div>
-    <table class="gtab" style="max-width:560px;margin-bottom:12px">
-      <thead><tr><th>项目</th><th>应缴</th><th>实缴</th></tr></thead>
-      <tbody>${row('账单', billDue, billPaid)}${row('增加项', AF.total, AF.paid)}
-        <tr><td><b>合计</b></td><td><b>¥${fmt2(billDue + AF.total)}</b></td><td><b>¥${fmt2(billPaid + AF.paid)}</b></td></tr></tbody>
-    </table>
+    ${supFigTable(G)}
     ${s ? `<div class="info-grid" style="margin-bottom:6px">
       <div class="info-item"><div class="k">交易流水号</div><div class="v">${s.transNo || '--'}</div></div>
       <div class="info-item"><div class="k">缴费方式</div><div class="v"><span class="tag tag-gray">${s.method}</span></div></div>
@@ -6887,11 +6917,12 @@ function renderRetireDetail(){
   const r = findRetire(activeRetireDetail);
   const box = document.getElementById('retireDetailBody');
   if (!r) { box.innerHTML = `<div class="empty-hint">未找到该退租单</div>`; return; }
-  const { deduct, add, refund, balance, ded } = computeSettleTotals(r);
+  const T = computeSettleTotals(r);
+  const refund = T.refund;
 
   const dedRows = r.deductions.map(d => `<tr>
       <td>${d.kind}</td><td>${d.item}</td>
-      <td class="${d.kind==='扣减'?'amt-neg':'amt-pos'}" style="text-align:right">${d.kind==='扣减'?'-':'+'}${fmt2(d.amount)}</td>
+      <td class="${d.kind==='退还'?'amt-pos':'amt-neg'}" style="text-align:right">${d.kind==='退还'?'+':'-'}${fmt2(d.amount)}</td>
       <td style="color:var(--text-secondary);padding-left:24px;white-space:normal;word-break:break-all">${d.note||'--'}</td>
     </tr>`).join('') || `<tr><td colspan="4" style="text-align:center;color:var(--text-placeholder)">暂无抵扣明细</td></tr>`;
 
@@ -6933,12 +6964,9 @@ function renderRetireDetail(){
     <div style="max-width:360px">
       <div class="sum-row"><span>押金应缴</span><span class="amt">${moneyPlain(r.depositShould)}</span></div>
       <div class="sum-row"><span>押金实缴</span><span class="amt">${moneyPlain(r.depositPaid)}</span></div>
-      <div class="sum-row"><span>押金余额<span class="hint-ic" title="结算时抵扣前的押金剩余金额">ⓘ</span></span><span class="amt">${moneyPlain(balance)}</span></div>
-      <div class="sum-row"><span>押金抵扣金额</span><span class="amt amt-neg">-¥${fmt2(ded)}</span></div>
-      <div class="sum-row"><span>扣减项合计${deductHint(balance, ded, deduct)}</span><span class="amt amt-neg">-¥${fmt2(deduct)}</span></div>
-      ${r.deductTrans ? `<div class="sum-row"><span>扣减项交易日志</span><span class="amt"><span class="tag tag-gray">押金</span> ¥${fmt2(r.deductTrans.amount)}<span style="color:var(--text-secondary);font-weight:400;margin-left:6px">${r.deductTrans.time}</span></span></div>` : ''}
-      <div class="sum-row"><span>${addFigLabel()}</span><span class="amt">${addFigValue(retireAddFigures(r), r.settled || isSettlePending(r))}</span></div>
-      <div class="sum-row total"><span class="lbl">应退金额<span class="hint-ic" title="${REFUND_TIP}">ⓘ</span></span><span class="amt ${refund>=0?'amt-pos':'amt-neg'}">${moneyPlain(refund)}</span></div>
+      ${settleSumRowsHtml(r, T, isSettlePending(r), true)}
+      ${(() => { const t = r.addTrans || r.deductTrans; return t ? `<div class="sum-row"><span>${r.addTrans ? '增加项' : '扣减项'}交易日志</span><span class="amt"><span class="tag tag-gray">押金</span> ¥${fmt2(t.amount)}<span style="color:var(--text-secondary);font-weight:400;margin-left:6px">${t.time}</span></span></div>` : ''; })()}
+      <div class="sum-row total"><span class="lbl">应退金额<span class="hint-ic" title="${REFUND_TIP}">ⓘ</span></span><span class="amt amt-pos">${moneyPlain(refund)}</span></div>
     </div>
     ${retireSupplementHtml(r)}
     ${r.refundVoucher ? `
@@ -7069,8 +7097,10 @@ function renderBillDepositDetail(box, info){
     <div class="bd-summary-bar">
       <div class="cell"><div class="k">已缴押金总额</div><div class="v">¥${fmt2(d.paidAmount||0)}</div></div>
       <div class="cell"><div class="k">已退还金额</div><div class="v">¥${fmt2(d.refundAmount||0)}</div></div>
-      <div class="cell"><div class="k">抵扣金额<span class="hint-ic" title="抵扣金额 = 押金抵扣账单 + 退租扣减项">ⓘ</span></div><div class="v">¥${fmt2(d.deductAmount||0)}</div></div>
-      <div class="cell"><div class="k">剩余金额<span class="hint-ic" title="剩余金额 = 实缴金额 − 已退金额 − 抵扣金额，计算结果小于 0 时显示为 0">ⓘ</span></div><div class="v">¥${fmt2(remain)}</div></div>
+      <div class="cell"><div class="k">结算增加<span class="hint-ic" title="退租结算时租户补缴的金额，计入押金剩余金额">ⓘ</span></div><div class="v">¥${fmt2(d.settleAddAmount||0)}</div></div>
+      <div class="cell"><div class="k">结算退还<span class="hint-ic" title="退租结算时应退还租户的金额（退还项），计入押金剩余金额，完成退款时随押金一起退还">ⓘ</span></div><div class="v">¥${fmt2(d.settleReturnAmount||0)}</div></div>
+      <div class="cell"><div class="k">抵扣金额<span class="hint-ic" title="抵扣金额 = 押金抵扣账单 + 退租增加项">ⓘ</span></div><div class="v">¥${fmt2(d.deductAmount||0)}</div></div>
+      <div class="cell"><div class="k">剩余金额<span class="hint-ic" title="剩余金额 = 实缴 + 结算增加 + 结算退还 − 已退 − 抵扣">ⓘ</span></div><div class="v">¥${fmt2(remain)}</div></div>
     </div>
     <div class="section-title">基本信息</div>
     <div class="info-grid" style="margin-bottom:28px">
@@ -7087,6 +7117,8 @@ function renderBillDepositDetail(box, info){
       <div class="info-item"><div class="k">押金金额</div><div class="v">${moneyPlain(d.depositAmount)}</div></div>
       <div class="info-item"><div class="k">缴费方式</div><div class="v"><span class="tag tag-gray">${d.payMethod && d.payMethod !== '--' ? d.payMethod : '--'}</span></div></div>
       <div class="info-item"><div class="k">缴费日期</div><div class="v">${unpaid ? '--' : (d.payDate || '--')}</div></div>
+      <div class="info-item"><div class="k">结算增加</div><div class="v">${moneyPlain(d.settleAddAmount||0)}</div></div>
+      <div class="info-item"><div class="k">结算退还</div><div class="v">${moneyPlain(d.settleReturnAmount||0)}</div></div>
       <div class="info-item"><div class="k">抵扣金额</div><div class="v">${moneyPlain(d.deductAmount||0)}</div></div>
       <div class="info-item"><div class="k">已退还金额</div><div class="v">${moneyPlain(d.refundAmount||0)}</div></div>
       <div class="info-item"><div class="k">退还日期</div><div class="v">${d.refundDate || '--'}</div></div>
@@ -8503,10 +8535,11 @@ function renderMiniProgramDetail(body){
    ============================================================ */
 function openPrintPreview(no){
   const r = findRetire(no);
-  const { deduct, add, refund, balance, ded } = computeSettleTotals(r);
+  const T = computeSettleTotals(r);
+  const { refund, balance, ded } = T;
   const dedRows = r.deductions.map(d => `<tr>
       <td>${d.kind}</td><td>${d.item}</td>
-      <td>${d.kind==='扣减'?'-':'+'}¥${fmt2(d.amount)}</td><td>${d.note||'--'}</td>
+      <td>${d.kind==='退还'?'+':'-'}¥${fmt2(d.amount)}</td><td>${d.note||'--'}</td>
     </tr>`).join('') || `<tr><td colspan="4" style="text-align:center;color:var(--text-placeholder)">暂无抵扣明细</td></tr>`;
   const voucherNo = 'VC' + r.asset + r.date.replace(/-/g,'') + String(1000+ (r.no.length*7 % 900)).slice(-6);
 
@@ -8529,10 +8562,11 @@ function openPrintPreview(no){
     </table>
     <div class="voucher-sum">
       <div>押金余额：<b>${moneyPlain(balance)}</b></div>
+      ${T.ret > 0 ? `<div>结算退还：<b class="amt-pos">+¥${fmt2(T.ret)}</b></div>` : ''}
+      ${T.sup > 0 ? `<div>结算增加：<b class="amt-pos">+¥${fmt2(T.sup)}</b></div>` : ''}
       <div>押金抵扣金额：<b class="amt-neg">-¥${fmt2(ded)}</b></div>
-      <div>扣减项合计：<b class="amt-neg">-¥${fmt2(deduct)}</b></div>
-      <div>增加项合计：<b>${moneyPlain(settleAddTotal(r))}</b></div>
-      <div>应退金额：<b class="${refund>=0?'amt-pos':'amt-neg'}">${moneyPlain(refund)}</b></div>
+      ${T.add > 0 ? `<div>增加项抵扣金额：<b class="amt-neg">-¥${fmt2(T.addPaid)}</b></div>` : ''}
+      <div>应退金额：<b class="amt-pos">${moneyPlain(refund)}</b></div>
     </div>
     <div class="voucher-notice">本收据不作为报销凭证，妥善保管，遗失不补。（白-存根 红-记账 蓝-留底 黄-客户）</div>
     <div class="fitem"><label>备注</label><textarea rows="3" maxlength="200" placeholder="请输入备注信息" oninput="this.nextElementSibling.textContent=this.value.length+'/200'"></textarea><div style="text-align:right;font-size:12px;color:var(--text-placeholder)">0/200</div></div>
@@ -10156,7 +10190,8 @@ function renderReconPage(){
   // 押金台账当月的抵扣流水：独立渠道单独统计，不计入合计及顶部汇总（退租补缴按收费项目「退租补缴」计入收款及合计）
   const ledgerOfMonth = depositLedger.filter(l => (l.opTime || '').slice(0, 7) === month);
   const ledgerItems = l => l.items || billFeeItems(l.billType, l.billNo, Math.abs(l.changeAmount));
-  const dedHint = '<span class="hint-ic" title="押金抵扣金额按收费项目统计，扣减项计入「退租扣减」，不计入合计及顶部汇总">ⓘ</span>';
+  const dedHint = '<span class="hint-ic" title="押金抵扣金额按收费项目统计，增加项计入「退租增加」，不计入合计及顶部汇总">ⓘ</span>';
+  const retHint = '<span class="hint-ic" title="退租结算退还项转入押金，随押金退款一起退还，不计入退款合计">ⓘ</span>';
   if (reconTab === 'in') {
     const channels = ['微信小程序支付','微信扫码','线下'];
     let html = `<thead><tr><th>收费项目</th>${channels.map(c=>`<th>${c==='线下'?'线下-现金':c}</th>`).join('')}<th>押金抵扣${dedHint}</th><th>合计</th></tr></thead><tbody>`;
@@ -10175,17 +10210,20 @@ function renderReconPage(){
     table.innerHTML = html + '</tbody>';
   } else if (reconTab === 'out') {
     const channels = ['微信线上退款','线下退款'];
-    let html = `<thead><tr><th>账单类型</th>${channels.map(c=>`<th>${c}</th>`).join('')}<th>合计</th></tr></thead><tbody>`;
-    let colTotals = [0,0], grand = 0;
-    billTypes.forEach(bt => {
+    let html = `<thead><tr><th>账单类型</th>${channels.map(c=>`<th>${c}</th>`).join('')}<th>押金结算退还${retHint}</th><th>合计</th></tr></thead><tbody>`;
+    let colTotals = [0,0], grand = 0, retTotal = 0;
+    // 押金结算退还：退租结算退还项（押金台账「结算退还」，账单类型=退租单，收费项目=退租退还），只统计，不计入合计及顶部汇总
+    const retOfMonth = ledgerOfMonth.filter(l => l.changeType === '结算退还').reduce((t, l) => t + l.changeAmount, 0);
+    billTypes.concat(['退租单']).forEach(bt => {
       const wx = outList.filter(r=>r.billType===bt && r.refundMethod==='原路返回').reduce((s,r)=>s+r.actualRefundAmount,0);
       const off = outList.filter(r=>r.billType===bt && r.refundMethod!=='原路返回').reduce((s,r)=>s+r.actualRefundAmount,0);
+      const ret = bt === '退租单' ? +fmt2(retOfMonth) : 0;
       const rowTotal = wx + off;
-      if (rowTotal === 0) return;
-      colTotals[0]+=wx; colTotals[1]+=off; grand+=rowTotal;
-      html += `<tr><td>${bt}</td><td>${wx?'¥'+fmt2(wx):'--'}</td><td>${off?'¥'+fmt2(off):'--'}</td><td><b>¥${fmt2(rowTotal)}</b></td></tr>`;
+      if (rowTotal === 0 && ret === 0) return;
+      colTotals[0]+=wx; colTotals[1]+=off; grand+=rowTotal; retTotal += ret;
+      html += `<tr><td>${bt}</td><td>${wx?'¥'+fmt2(wx):'--'}</td><td>${off?'¥'+fmt2(off):'--'}</td><td>${ret?'¥'+fmt2(ret):'--'}</td><td><b>¥${fmt2(rowTotal)}</b></td></tr>`;
     });
-    html += `<tr><td><b>合计</b></td><td><b>¥${fmt2(colTotals[0])}</b></td><td><b>¥${fmt2(colTotals[1])}</b></td><td><b>¥${fmt2(grand)}</b></td></tr>`;
+    html += `<tr><td><b>合计</b></td><td><b>¥${fmt2(colTotals[0])}</b></td><td><b>¥${fmt2(colTotals[1])}</b></td><td><b>¥${fmt2(retTotal)}</b></td><td><b>¥${fmt2(grand)}</b></td></tr>`;
     table.innerHTML = html + '</tbody>';
   } else {
     let html = `<thead><tr><th>账单类型</th><th>微信</th><th>线下</th><th>合计</th></tr></thead><tbody>`;
